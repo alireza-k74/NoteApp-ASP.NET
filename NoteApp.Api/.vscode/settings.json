@@ -1,0 +1,24 @@
+{
+    "editor.formatOnSave": true,
+    "editor.formatOnPaste": true,
+    "editor.formatOnType": true,
+  
+    "[csharp]": {
+      "editor.defaultFormatter": "ms-dotnettools.csharp",
+      "editor.formatOnSave": true,
+      "editor.formatOnPaste": true,
+      "editor.formatOnType": true,
+      "editor.codeActionsOnSave": {
+        "source.organizeImports": "explicit",
+        "source.fixAll": "explicit"
+      }
+    },
+  
+    "files.trimTrailingWhitespace": true,
+    "files.insertFinalNewline": true,
+  
+    "editor.tabSize": 4,
+    "editor.insertSpaces": true,
+  
+    "dotnet.defaultSolution": "NoteApp.sln"
+  }
