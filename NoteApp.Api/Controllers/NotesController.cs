@@ -1,10 +1,8 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using NoteApp.Api.Data;
 using NoteApp.Api.DTOs;
-using NoteApp.Api.Models;
+using NoteApp.Api.Services;
 
 namespace NoteApp.Api.Controllers;
 
@@ -13,151 +11,110 @@ namespace NoteApp.Api.Controllers;
 [Authorize]
 public class NotesController : ControllerBase
 {
-    private readonly AppDbContext _db;
+    private readonly INoteService _noteService;
 
-    public NotesController(AppDbContext db)
+    public NotesController(INoteService noteService)
     {
-        _db = db;
+        _noteService = noteService;
     }
 
     [HttpGet]
-    public async Task<IActionResult> GetNotes()
+    public async Task<IActionResult> GetNotes([FromQuery] NoteQuery query)
     {
-        var userId = GetUserId();
+        var result = await _noteService.GetNotesAsync(GetUserId(), query);
+        return Ok(result);
+    }
 
-        var notes = await _db.Notes
-            .Where(x => x.UserId == userId)
-            .OrderByDescending(x => x.UpdatedAt)
-            .Select(x => new NoteResponse
-            {
-                Id = x.Id,
-                Title = x.Title,
-                Content = x.Content,
-                CreatedAt = x.CreatedAt,
-                UpdatedAt = x.UpdatedAt
-            })
-            .ToListAsync();
-
-        return Ok(notes);
+    [HttpGet("trash")]
+    public async Task<IActionResult> GetTrash([FromQuery] NoteQuery query)
+    {
+        var result = await _noteService.GetTrashAsync(GetUserId(), query);
+        return Ok(result);
     }
 
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetNote(int id)
     {
-        var userId = GetUserId();
-
-        var note = await _db.Notes
-            .Where(x => x.Id == id && x.UserId == userId)
-            .Select(x => new NoteResponse
-            {
-                Id = x.Id,
-                Title = x.Title,
-                Content = x.Content,
-                CreatedAt = x.CreatedAt,
-                UpdatedAt = x.UpdatedAt
-            })
-            .FirstOrDefaultAsync();
+        var note = await _noteService.GetNoteAsync(GetUserId(), id);
 
         if (note == null)
-            return NotFound(new
-            {
-                message = "Note not found."
-            });
+            return NotFound(new { message = "Note not found." });
 
         return Ok(note);
     }
 
     [HttpPost]
-    public async Task<IActionResult> CreateNote(
-        CreateNoteRequest request)
+    public async Task<IActionResult> CreateNote(CreateNoteRequest request)
     {
-        var userId = GetUserId();
-
-        var note = new Note
+        try
         {
-            Title = request.Title,
-            Content = request.Content,
-            UserId = userId,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
-        };
+            var note = await _noteService.CreateNoteAsync(GetUserId(), request);
 
-        _db.Notes.Add(note);
-
-        await _db.SaveChangesAsync();
-
-        return CreatedAtAction(
-            nameof(GetNote),
-            new { id = note.Id },
-            new NoteResponse
-            {
-                Id = note.Id,
-                Title = note.Title,
-                Content = note.Content,
-                CreatedAt = note.CreatedAt,
-                UpdatedAt = note.UpdatedAt
-            });
+            return CreatedAtAction(
+                nameof(GetNote),
+                new { id = note.Id },
+                note);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> UpdateNote(
-        int id,
-        UpdateNoteRequest request)
+    public async Task<IActionResult> UpdateNote(int id, UpdateNoteRequest request)
     {
-        var userId = GetUserId();
-
-        var note = await _db.Notes
-            .FirstOrDefaultAsync(
-                x => x.Id == id && x.UserId == userId);
-
-        if (note == null)
-            return NotFound(new
-            {
-                message = "Note not found."
-            });
-
-        note.Title = request.Title;
-        note.Content = request.Content;
-        note.UpdatedAt = DateTime.UtcNow;
-
-        await _db.SaveChangesAsync();
-
-        return Ok(new NoteResponse
+        try
         {
-            Id = note.Id,
-            Title = note.Title,
-            Content = note.Content,
-            CreatedAt = note.CreatedAt,
-            UpdatedAt = note.UpdatedAt
-        });
+            var note = await _noteService.UpdateNoteAsync(GetUserId(), id, request);
+
+            if (note == null)
+                return NotFound(new { message = "Note not found." });
+
+            return Ok(note);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
     }
 
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> DeleteNote(int id)
     {
-        var userId = GetUserId();
+        var deleted = await _noteService.SoftDeleteAsync(GetUserId(), id);
 
-        var note = await _db.Notes
-            .FirstOrDefaultAsync(
-                x => x.Id == id && x.UserId == userId);
-
-        if (note == null)
-            return NotFound(new
-            {
-                message = "Note not found."
-            });
-
-        _db.Notes.Remove(note);
-
-        await _db.SaveChangesAsync();
+        if (!deleted)
+            return NotFound(new { message = "Note not found." });
 
         return NoContent();
     }
 
+    [HttpPost("{id:int}/restore")]
+    public async Task<IActionResult> RestoreNote(int id)
+    {
+        var note = await _noteService.RestoreAsync(GetUserId(), id);
+
+        if (note == null)
+            return NotFound(new { message = "Note not found in trash." });
+
+        return Ok(note);
+    }
+
+    [HttpPatch("{id:int}/pin")]
+    public async Task<IActionResult> TogglePin(int id)
+    {
+        var note = await _noteService.TogglePinAsync(GetUserId(), id);
+
+        if (note == null)
+            return NotFound(new { message = "Note not found." });
+
+        return Ok(note);
+    }
+
     private int GetUserId()
     {
-        var userId = User.FindFirstValue(
-            ClaimTypes.NameIdentifier);
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
         if (string.IsNullOrEmpty(userId))
             throw new UnauthorizedAccessException();

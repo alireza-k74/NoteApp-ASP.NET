@@ -10,4 +10,8 @@ public class CreateNoteRequest
 
     [MaxLength(10000)]
     public string Content { get; set; } = string.Empty;
+
+    public bool IsPinned { get; set; }
+
+    public List<int> TagIds { get; set; } = [];
 }

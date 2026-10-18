@@ -10,7 +10,8 @@ A secure REST API for creating and managing personal notes. Built with ASP.NET C
 - Request validation on auth and note DTOs
 - CORS for the React frontend (`localhost:5173`)
 - Password hashing with ASP.NET Identity `PasswordHasher`
-- Full CRUD for notes (create, read, update, delete)
+- Full CRUD for notes (create, read, update, soft-delete)
+- Pin notes, trash/restore, search, pagination, and tags
 - Notes are scoped per authenticated user
 - Swagger / OpenAPI docs with Bearer auth support
 - SQL Server persistence via EF Core migrations
@@ -79,8 +80,7 @@ Update `NoteApp.Api/appsettings.json` (or use User Secrets / environment variabl
 ### 3. Apply migrations
 
 ```bash
-cd NoteApp.Api
-dotnet ef database update
+dotnet ef database update --project NoteApp.Api/NoteApp.Api.csproj
 ```
 
 ### 4. Run the API
@@ -111,11 +111,22 @@ https://localhost:<port>/swagger
 
 | Method | Endpoint | Description |
 | --- | --- | --- |
-| `GET` | `/api/notes` | List current user's notes |
-| `GET` | `/api/notes/{id}` | Get a single note |
-| `POST` | `/api/notes` | Create a note |
+| `GET` | `/api/notes` | List notes (`q`, `tag`, `pinned`, `page`, `pageSize`) |
+| `GET` | `/api/notes/trash` | List soft-deleted notes |
+| `GET` | `/api/notes/{id}` | Get a single active note |
+| `POST` | `/api/notes` | Create a note (optional `tagIds`, `isPinned`) |
 | `PUT` | `/api/notes/{id}` | Update a note |
-| `DELETE` | `/api/notes/{id}` | Delete a note |
+| `DELETE` | `/api/notes/{id}` | Soft-delete a note (move to trash) |
+| `POST` | `/api/notes/{id}/restore` | Restore a note from trash |
+| `PATCH` | `/api/notes/{id}/pin` | Toggle pin |
+
+### Tags (`/api/tags`) — requires Bearer token
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| `GET` | `/api/tags` | List current user's tags |
+| `POST` | `/api/tags` | Create a tag |
+| `DELETE` | `/api/tags/{id}` | Delete a tag |
 
 ## Example Requests
 

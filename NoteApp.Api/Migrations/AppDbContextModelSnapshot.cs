@@ -37,9 +37,19 @@ namespace NoteApp.Api.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<DateTime?>("DeletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsPinned")
+                        .HasColumnType("bit");
+
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -88,6 +98,33 @@ namespace NoteApp.Api.Migrations
                     b.ToTable("RefreshTokens");
                 });
 
+            modelBuilder.Entity("NoteApp.Api.Models.Tag", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId", "Name")
+                        .IsUnique();
+
+                    b.ToTable("Tags");
+                });
+
             modelBuilder.Entity("NoteApp.Api.Models.User", b =>
                 {
                     b.Property<int>("Id")
@@ -122,6 +159,21 @@ namespace NoteApp.Api.Migrations
                     b.ToTable("Users");
                 });
 
+            modelBuilder.Entity("NoteTag", b =>
+                {
+                    b.Property<int>("NotesId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TagsId")
+                        .HasColumnType("int");
+
+                    b.HasKey("NotesId", "TagsId");
+
+                    b.HasIndex("TagsId");
+
+                    b.ToTable("NoteTags", (string)null);
+                });
+
             modelBuilder.Entity("NoteApp.Api.Models.Note", b =>
                 {
                     b.HasOne("NoteApp.Api.Models.User", "User")
@@ -144,11 +196,39 @@ namespace NoteApp.Api.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("NoteApp.Api.Models.Tag", b =>
+                {
+                    b.HasOne("NoteApp.Api.Models.User", "User")
+                        .WithMany("Tags")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("NoteTag", b =>
+                {
+                    b.HasOne("NoteApp.Api.Models.Note", null)
+                        .WithMany()
+                        .HasForeignKey("NotesId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("NoteApp.Api.Models.Tag", null)
+                        .WithMany()
+                        .HasForeignKey("TagsId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("NoteApp.Api.Models.User", b =>
                 {
                     b.Navigation("Notes");
 
                     b.Navigation("RefreshTokens");
+
+                    b.Navigation("Tags");
                 });
 #pragma warning restore 612, 618
         }
