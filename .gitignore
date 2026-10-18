@@ -35,3 +35,9 @@ Desktop.ini
 appsettings.*.local.json
 .env
 .env.*
+!.env.example
+
+## Node
+node_modules/
+dist/
+NoteApp.Web/dist/
