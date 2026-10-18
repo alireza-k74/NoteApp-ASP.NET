@@ -1,3 +1,5 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NoteApp.Api.DTOs;
 using NoteApp.Api.Services;
@@ -55,12 +57,12 @@ public class AuthController : ControllerBase
 
     [HttpPost("refresh")]
     public async Task<IActionResult> Refresh(
-        [FromBody] string refreshToken)
+        RefreshTokenRequest request)
     {
         try
         {
             var result =
-                await _authService.RefreshTokenAsync(refreshToken);
+                await _authService.RefreshTokenAsync(request.RefreshToken);
 
             return Ok(result);
         }
@@ -71,5 +73,50 @@ public class AuthController : ControllerBase
                 message = ex.Message
             });
         }
+    }
+
+    [HttpPost("logout")]
+    public async Task<IActionResult> Logout(
+        RefreshTokenRequest request)
+    {
+        try
+        {
+            await _authService.LogoutAsync(request.RefreshToken);
+
+            return NoContent();
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(new
+            {
+                message = ex.Message
+            });
+        }
+    }
+
+    [Authorize]
+    [HttpGet("me")]
+    public async Task<IActionResult> Me()
+    {
+        var userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (string.IsNullOrEmpty(userIdValue) ||
+            !int.TryParse(userIdValue, out var userId))
+        {
+            return Unauthorized(new
+            {
+                message = "Invalid token."
+            });
+        }
+
+        var user = await _authService.GetCurrentUserAsync(userId);
+
+        if (user == null)
+            return NotFound(new
+            {
+                message = "User not found."
+            });
+
+        return Ok(user);
     }
 }

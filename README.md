@@ -6,11 +6,15 @@ A secure REST API for creating and managing personal notes. Built with ASP.NET C
 
 - User registration and login
 - JWT access tokens with refresh token rotation
+- Logout (refresh token revoke) and `/api/auth/me`
+- Request validation on auth and note DTOs
+- CORS for the React frontend (`localhost:5173`)
 - Password hashing with ASP.NET Identity `PasswordHasher`
 - Full CRUD for notes (create, read, update, delete)
 - Notes are scoped per authenticated user
 - Swagger / OpenAPI docs with Bearer auth support
 - SQL Server persistence via EF Core migrations
+- Automated integration tests (`NoteApp.Api.Tests`)
 
 ## Tech Stack
 
@@ -27,13 +31,14 @@ A secure REST API for creating and managing personal notes. Built with ASP.NET C
 
 ```
 NoteApp/
-└── NoteApp.Api/
-    ├── Controllers/     # Auth & Notes endpoints
-    ├── Data/            # DbContext
-    ├── DTOs/            # Request/response models
-    ├── Models/          # User, Note, RefreshToken
-    ├── Services/        # Authentication logic
-    └── Migrations/      # EF Core migrations
+├── NoteApp.Api/           # ASP.NET Core Web API
+│   ├── Controllers/
+│   ├── Data/
+│   ├── DTOs/
+│   ├── Models/
+│   ├── Services/
+│   └── Migrations/
+└── NoteApp.Api.Tests/     # Integration tests
 ```
 
 ## Prerequisites
@@ -99,6 +104,8 @@ https://localhost:<port>/swagger
 | `POST` | `/api/auth/register` | Register a new user |
 | `POST` | `/api/auth/login` | Login and receive tokens |
 | `POST` | `/api/auth/refresh` | Exchange a refresh token for new tokens |
+| `POST` | `/api/auth/logout` | Revoke a refresh token |
+| `GET` | `/api/auth/me` | Get the current authenticated user |
 
 ### Notes (`/api/notes`) — requires Bearer token
 
@@ -150,11 +157,20 @@ Content-Type: application/json
 }
 ```
 
+## Running tests
+
+```bash
+dotnet test NoteApp.slnx
+```
+
 ## Security Notes
 
 - Passwords are hashed; plain-text passwords are never stored
-- Access tokens are short-lived; refresh tokens can be revoked
+- Access tokens are short-lived; refresh tokens can be revoked via `/api/auth/logout`
+- Request DTOs are validated (required fields, email format, length limits)
+- CORS is configured for the React dev origin (`http://localhost:5173`)
 - Each note is tied to a user — users cannot access another user's notes
+- Prefer User Secrets / environment variables for JWT key and DB password in real deployments
 
 ## License
 

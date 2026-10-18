@@ -1,8 +1,8 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
-using System.Text;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using NoteApp.Api.Data;
 using NoteApp.Api.DTOs;
@@ -26,10 +26,10 @@ public class AuthService : IAuthService
 
     public async Task<TokenResponse> RegisterAsync(RegisterRequest request)
     {
-        if (_db.Users.Any(x => x.Email == request.Email))
+        if (await _db.Users.AnyAsync(x => x.Email == request.Email))
             throw new InvalidOperationException("Email already exists.");
 
-        if (_db.Users.Any(x => x.Username == request.Username))
+        if (await _db.Users.AnyAsync(x => x.Username == request.Username))
             throw new InvalidOperationException("Username already exists.");
 
         var user = new User
@@ -50,8 +50,8 @@ public class AuthService : IAuthService
 
     public async Task<TokenResponse> LoginAsync(LoginRequest request)
     {
-        var user = _db.Users
-            .FirstOrDefault(x => x.Email == request.Email);
+        var user = await _db.Users
+            .FirstOrDefaultAsync(x => x.Email == request.Email);
 
         if (user == null)
             throw new UnauthorizedAccessException(
@@ -72,8 +72,9 @@ public class AuthService : IAuthService
     public async Task<TokenResponse> RefreshTokenAsync(
         string refreshToken)
     {
-        var token = _db.RefreshTokens
-            .FirstOrDefault(x => x.Token == refreshToken);
+        var token = await _db.RefreshTokens
+            .Include(x => x.User)
+            .FirstOrDefaultAsync(x => x.Token == refreshToken);
 
         if (token == null)
             throw new UnauthorizedAccessException(
@@ -92,6 +93,36 @@ public class AuthService : IAuthService
         await _db.SaveChangesAsync();
 
         return await GenerateTokensAsync(token.User);
+    }
+
+    public async Task LogoutAsync(string refreshToken)
+    {
+        var token = await _db.RefreshTokens
+            .FirstOrDefaultAsync(x => x.Token == refreshToken);
+
+        if (token == null)
+            throw new UnauthorizedAccessException(
+                "Invalid refresh token.");
+
+        if (token.IsRevoked)
+            return;
+
+        token.IsRevoked = true;
+
+        await _db.SaveChangesAsync();
+    }
+
+    public async Task<UserResponse?> GetCurrentUserAsync(int userId)
+    {
+        return await _db.Users
+            .Where(x => x.Id == userId)
+            .Select(x => new UserResponse
+            {
+                Id = x.Id,
+                Username = x.Username,
+                Email = x.Email
+            })
+            .FirstOrDefaultAsync();
     }
 
     private async Task<TokenResponse> GenerateTokensAsync(User user)
@@ -136,16 +167,15 @@ public class AuthService : IAuthService
     {
         var key = _configuration["Jwt:Key"]!;
 
-       var claims = new List<Claim>
-{
-    new(ClaimTypes.NameIdentifier, user.Id.ToString()),
-    new(ClaimTypes.Email, user.Email),
-    new(ClaimTypes.Name, user.Username)
-};
+        var claims = new List<Claim>
+        {
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new(ClaimTypes.Email, user.Email),
+            new(ClaimTypes.Name, user.Username)
+        };
 
         var credentials = new SigningCredentials(
-            new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(key)),
+            JwtTokenHelper.CreateSecurityKey(key),
             SecurityAlgorithms.HmacSha256);
 
         var token = new JwtSecurityToken(

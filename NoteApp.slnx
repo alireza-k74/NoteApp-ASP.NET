@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="NoteApp.Api.Tests/NoteApp.Api.Tests.csproj" />
+  <Project Path="NoteApp.Api/NoteApp.Api.csproj" />
+</Solution>

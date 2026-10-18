@@ -9,4 +9,8 @@ public interface IAuthService
     Task<TokenResponse> LoginAsync(LoginRequest request);
 
     Task<TokenResponse> RefreshTokenAsync(string refreshToken);
+
+    Task LogoutAsync(string refreshToken);
+
+    Task<UserResponse?> GetCurrentUserAsync(int userId);
 }
