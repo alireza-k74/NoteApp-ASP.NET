@@ -82,7 +82,7 @@ namespace NoteApp.Api.Migrations
                         column: x => x.TagsId,
                         principalTable: "Tags",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateIndex(

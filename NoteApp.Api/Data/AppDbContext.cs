@@ -64,9 +64,17 @@ public class AppDbContext : DbContext
             .HasForeignKey(x => x.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        // SQL Server rejects multiple cascade paths (User→Notes→NoteTags and User→Tags→NoteTags).
+        // Cascade from Notes; Restrict from Tags (DeleteTagAsync clears join rows first).
         modelBuilder.Entity<Note>()
             .HasMany(x => x.Tags)
             .WithMany(x => x.Notes)
-            .UsingEntity(join => join.ToTable("NoteTags"));
+            .UsingEntity<Dictionary<string, object>>(
+                "NoteTag",
+                l => l.HasOne<Tag>().WithMany().HasForeignKey("TagsId")
+                    .OnDelete(DeleteBehavior.Restrict),
+                r => r.HasOne<Note>().WithMany().HasForeignKey("NotesId")
+                    .OnDelete(DeleteBehavior.Cascade),
+                j => j.ToTable("NoteTags"));
     }
 }

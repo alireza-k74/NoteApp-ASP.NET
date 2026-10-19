@@ -221,7 +221,7 @@ namespace NoteApp.Api.Migrations
                     b.HasOne("NoteApp.Api.Models.Tag", null)
                         .WithMany()
                         .HasForeignKey("TagsId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
                 });
 
